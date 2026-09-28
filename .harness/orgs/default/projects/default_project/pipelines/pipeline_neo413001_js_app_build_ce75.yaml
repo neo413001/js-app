@@ -1,0 +1,43 @@
+pipeline:
+  name: pipeline_neo413001_js_app_build_ce75
+  id: pipeline_neo413001_js_app_build_ce75
+  stages:
+    - name: Build and Test
+      id: build_and_test
+      runtime: cloud
+      clone:
+        enabled: true
+      cache:
+        enabled: true
+      steps:
+        - name: Install Dependencies
+          id: install
+          run:
+            shell: bash
+            script: |-
+              node --version
+              npm --version
+              npm ci
+          timeout: 30m
+        - name: Run Server Tests
+          id: test_server
+          run:
+            shell: bash
+            script: |-
+              mkdir -p .harness/reports
+              npm install --no-save mocha-junit-reporter
+              npx nyc --report-dir=./build/reports/coverage/server-tests mocha -r ts-node/register -r source-map-support/register --recursive "test/server/**/*.ts" --reporter mocha-junit-reporter --reporter-options mochaFile=.harness/reports/junit.xml
+            report:
+              type: junit
+              paths:
+                - .harness/reports/junit.xml
+          timeout: 15m
+        - name: Upload Coverage
+          id: upload_coverage
+          run:
+            shell: bash
+            script: |-
+              test -s "build/reports/coverage/server-tests/lcov.info"
+              hcli cov upload --file="build/reports/coverage/server-tests/lcov.info"
+  tags:
+    onboarding: "true"

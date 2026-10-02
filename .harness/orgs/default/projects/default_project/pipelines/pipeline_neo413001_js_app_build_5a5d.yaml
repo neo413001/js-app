@@ -1,0 +1,42 @@
+pipeline:
+  id: pipeline_neo413001_js_app_build_5a5d
+  name: pipeline_neo413001_js_app_build_5a5d
+  stages:
+    - id: build_and_test
+      name: Build and Test
+      runtime: cloud
+      platform:
+        os: linux
+        arch: amd64
+      clone:
+        enabled: true
+      cache:
+        enabled: true
+      steps:
+        - name: Install Dependencies
+          id: install
+          run:
+            shell: bash
+            script: |
+              npm install
+        - name: Run Server Tests
+          id: test_server
+          run:
+            shell: bash
+            script: |
+              mkdir -p .harness/reports
+              npm install --no-save mocha-junit-reporter
+              MOCHA_FILE=.harness/reports/junit.xml npx nyc --report-dir=./build/reports/coverage/server-tests mocha -r ts-node/register -r source-map-support/register --recursive "test/server/**/*.ts" --reporter mocha-junit-reporter
+            report:
+              type: junit
+              paths:
+                - .harness/reports/junit.xml
+        - name: Upload Coverage
+          id: upload_coverage
+          run:
+            shell: bash
+            script: |
+              test -s "build/reports/coverage/server-tests/lcov.info"
+              hcli cov upload --file="build/reports/coverage/server-tests/lcov.info"
+  tags:
+    onboarding: "true"
